@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>아침선도 적발 기록</title>
+<style>
+  :root{
+    --bg:#f4f5f7; --card:#ffffff; --line:#e3e5ea; --text:#1d2433;
+    --muted:#6b7280; --primary:#2563eb; --primary-d:#1d4ed8; --ok:#0f9d58;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+       background:var(--bg); color:var(--text); padding:16px; line-height:1.5;}
+  .wrap{max-width:480px; margin:0 auto;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px;}
+  .head{display:flex; align-items:center; gap:10px; margin-bottom:18px;}
+  .head .ic{width:40px;height:40px;border-radius:10px;background:#e6f0ff;color:var(--primary);
+            display:flex;align-items:center;justify-content:center;font-size:20px;}
+  .head h1{font-size:18px; margin:0; font-weight:600;}
+  .head p{font-size:12px; color:var(--muted); margin:2px 0 0;}
+  label{display:block; font-size:13px; color:var(--muted); margin:0 0 5px; font-weight:500;}
+  input,select{width:100%; height:46px; padding:0 12px; font-size:16px; border:1px solid var(--line);
+               border-radius:10px; background:#fff; color:var(--text); margin-bottom:13px; outline:none;}
+  input:focus,select:focus{border-color:var(--primary); box-shadow:0 0 0 3px rgba(37,99,235,.12);}
+  .row{display:flex; gap:10px;}
+  .row > div{flex:1;}
+  .hidden{display:none;}
+  button.submit{width:100%; height:50px; border:none; border-radius:11px; background:var(--primary);
+                color:#fff; font-size:16px; font-weight:600; cursor:pointer; transition:.15s;}
+  button.submit:active{transform:scale(.98); background:var(--primary-d);}
+  button.submit:disabled{opacity:.6;}
+  .grid{display:grid; gap:8px; margin-bottom:13px;}
+  .grid.dept{grid-template-columns:repeat(5, 1fr);}
+  .grid.two{grid-template-columns:repeat(2, 1fr);}
+  .grid.three{grid-template-columns:repeat(3, 1fr);}
+  .chip{height:46px; border:1px solid var(--line); border-radius:10px; background:#fff;
+        color:var(--text); font-size:15px; font-weight:500; cursor:pointer; transition:.12s;
+        display:flex; align-items:center; justify-content:center; padding:0;}
+  .chip:active{transform:scale(.96);}
+  .chip.on{background:var(--primary); color:#fff; border-color:var(--primary);}
+  .grid.dept .chip{font-size:14px;}
+  .grid.three .chip, .grid.two .chip{font-size:14px;}
+  .grid.reason{grid-template-columns:repeat(2, 1fr);}
+  .grid.reason .chip{height:44px; font-size:14px;}
+  .toast{position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(40px);
+         background:#1d2433; color:#fff; padding:13px 20px; border-radius:10px; font-size:14px;
+         opacity:0; transition:.3s; pointer-events:none; z-index:9;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  .toast.ok{background:var(--ok);}
+  .log{margin-top:16px;}
+  .log h2{font-size:13px; color:var(--muted); margin:0 0 8px; font-weight:600;}
+  .log .item{font-size:13px; padding:8px 10px; background:#f8f9fb; border-radius:8px; margin-bottom:6px;
+             display:flex; justify-content:space-between; gap:8px;}
+  .log .item span{color:var(--muted);}
+  .count{font-size:12px; color:var(--muted); text-align:center; margin-top:14px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="head">
+      <div class="ic">✓</div>
+      <div>
+        <h1>아침선도 적발 기록</h1>
+        <p id="dateLabel">학생회 선도활동</p>
+      </div>
+    </div>
+
+    <label>입력자 (선도 학생)</label>
+    <input id="reporter" type="text" placeholder="예: 김선도 (한 번만 입력)" autocomplete="off">
+
+    <label>학과</label>
+    <div class="grid dept" id="deptGrid"></div>
+
+    <div class="row">
+      <div>
+        <label>학년</label>
+        <div class="grid three" id="gradeGrid"></div>
+      </div>
+      <div>
+        <label>반</label>
+        <div class="grid two" id="clsGrid"></div>
+      </div>
+    </div>
+
+    <label>학생 이름</label>
+    <input id="name" type="text" placeholder="예: 홍길동" autocomplete="off">
+
+    <label>적발 사유</label>
+    <div class="grid reason" id="reasonGrid"></div>
+    <input id="reasonEtc" class="hidden" type="text" placeholder="기타 사유를 입력하세요" autocomplete="off">
+
+    <button class="submit" id="btn">제출</button>
+
+    <div class="count" id="count">오늘 전송 0건</div>
+
+    <div class="log" id="logBox" style="display:none;">
+      <h2>방금 전송한 내역</h2>
+      <div id="logList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== 구글 폼 전송 설정 ===== */
+const GFORM = {
+  action: "https://docs.google.com/forms/d/e/1FAIpQLSfDIMWq8TrbQR3wVeT2jlB-93t-SRbQUhfDYGMunOy-3DAi1w/formResponse",
+  reporter:   "entry.1493934882", // 입력자
+  dept:       "entry.1075213477", // 학과
+  gradeClass: "entry.995043741",  // 학년-반
+  name:       "entry.2057667837", // 학생 이름
+  reason:     "entry.2005704844"  // 적발 사유
+};
+/* ============================= */
+
+const $ = id => document.getElementById(id);
+let todayCount = 0;
+
+/* 학과 10개 / 학년 3개 / 반 2개 버튼 생성 */
+const DEPTS = ["화공","환경","로봇","소방","전자","사물","콘텐츠","경찰","레저","반도체"];
+const REASONS = ["넥타이 미착용","치마로고 없음","교복 미착용","동복·하복 혼용","단체티 혼용","체육복 등교","체육복 혼용","크록스·슬리퍼 등교","진한 화장","귀걸이·피어싱","기타"];
+const sel = { dept:null, grade:null, cls:null, reasons:[] };
+
+function buildGrid(boxId, items, key, defaultIdx){
+  const box = $(boxId);
+  items.forEach((it, i)=>{
+    const label = typeof it === "object" ? it.label : it;
+    const value = typeof it === "object" ? it.value : it;
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.textContent = label;
+    b.addEventListener("click", ()=>{
+      box.querySelectorAll(".chip").forEach(c=>c.classList.remove("on"));
+      b.classList.add("on");
+      sel[key] = value;
+    });
+    box.appendChild(b);
+    if(defaultIdx === i){ b.classList.add("on"); sel[key] = value; }
+  });
+}
+buildGrid("deptGrid", DEPTS, "dept");
+buildGrid("gradeGrid", [
+  {label:"1학년", value:"1"},
+  {label:"2학년", value:"2"},
+  {label:"3학년", value:"3"}
+], "grade");
+buildGrid("clsGrid", [
+  {label:"1반", value:"1"},
+  {label:"2반", value:"2"}
+], "cls");
+
+/* 적발 사유 버튼 (중복 선택 가능, 기타 선택 시 직접입력 칸 표시) */
+(function buildReasons(){
+  const box = $("reasonGrid");
+  REASONS.forEach(label=>{
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.textContent = label;
+    b.addEventListener("click", ()=>{
+      const i = sel.reasons.indexOf(label);
+      if(i === -1){ sel.reasons.push(label); b.classList.add("on"); }
+      else { sel.reasons.splice(i, 1); b.classList.remove("on"); }
+      const etcOn = sel.reasons.includes("기타");
+      $("reasonEtc").classList.toggle("hidden", !etcOn);
+      if(etcOn) $("reasonEtc").focus();
+    });
+    box.appendChild(b);
+  });
+})();
+
+// 날짜 표시
+const now = new Date();
+$("dateLabel").textContent =
+  `${now.getMonth()+1}월 ${now.getDate()}일 선도활동`;
+
+// 사유: 선택된 항목들을 쉼표로 결합. 기타는 직접입력 값으로 치환
+function getReason(){
+  const etc = $("reasonEtc").value.trim();
+  const list = sel.reasons.map(r => r === "기타" ? etc : r).filter(Boolean);
+  return list.join(", ");
+}
+
+function toast(msg, ok){
+  const t = $("toast");
+  t.textContent = msg;
+  t.className = "toast show" + (ok ? " ok" : "");
+  setTimeout(()=>{ t.className = "toast"; }, 2200);
+}
+
+$("btn").addEventListener("click", async ()=>{
+  const reporter = $("reporter").value.trim();
+  const name = $("name").value.trim();
+  const reason = getReason();
+
+  if(!reporter){ toast("입력자 이름을 적어주세요"); $("reporter").focus(); return; }
+  if(!sel.dept){ toast("학과를 선택하세요"); return; }
+  if(!sel.grade){ toast("학년을 선택하세요"); return; }
+  if(!sel.cls){ toast("반을 선택하세요"); return; }
+  if(!name){ toast("학생 이름을 적어주세요"); $("name").focus(); return; }
+  if(sel.reasons.length === 0){ toast("적발 사유를 선택하세요"); return; }
+  if(!reason){ toast("기타 사유를 입력하세요"); $("reasonEtc").focus(); return; }
+
+  const data = {
+    reporter,
+    dept: sel.dept,
+    gradeClass: `${sel.grade}-${sel.cls}`,
+    name,
+    reason
+  };
+
+  $("btn").disabled = true;
+  $("btn").textContent = "제출 중...";
+
+  try{
+    const fd = new FormData();
+    fd.append(GFORM.reporter, data.reporter);
+    fd.append(GFORM.dept, data.dept);
+    fd.append(GFORM.gradeClass, data.gradeClass);
+    fd.append(GFORM.name, data.name);
+    fd.append(GFORM.reason, data.reason);
+    await fetch(GFORM.action, {
+      method:"POST",
+      mode:"no-cors",
+      body: fd
+    });
+    // no-cors 모드는 응답을 읽을 수 없으므로 제출 성공으로 간주
+    todayCount++;
+    $("count").textContent = `오늘 제출 ${todayCount}건`;
+    addLog(data);
+    toast("제출 완료 ✓", true);
+    // 다음 입력 위해 학생 이름·사유만 초기화 (입력자/학과/학년/반 유지)
+    $("name").value = "";
+    sel.reasons = [];
+    $("reasonGrid").querySelectorAll(".chip").forEach(c=>c.classList.remove("on"));
+    $("reasonEtc").value = "";
+    $("reasonEtc").classList.add("hidden");
+    $("name").focus();
+  }catch(err){
+    toast("제출 실패. 인터넷을 확인하세요");
+  }finally{
+    $("btn").disabled = false;
+    $("btn").textContent = "제출";
+  }
+});
+
+function addLog(d){
+  $("logBox").style.display = "block";
+  const el = document.createElement("div");
+  el.className = "item";
+  el.innerHTML = `<b>${d.gradeClass} ${d.name}</b><span>${d.reason}</span>`;
+  $("logList").prepend(el);
+}
+</script>
+</body>
+</html>
