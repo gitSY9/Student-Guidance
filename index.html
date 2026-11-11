@@ -67,8 +67,8 @@
            border-radius:10px; background:#fff; color:var(--muted); text-align:left; margin-bottom:13px; cursor:pointer;}
   .namebtn.set{color:var(--text); font-weight:600;}
   .picker{position:fixed; inset:0; background:var(--bg); z-index:20; overflow-y:auto; padding:14px;}
-  .picker-head{display:flex; justify-content:space-between; align-items:center; max-width:480px;
-               margin:0 auto 10px; font-size:16px;}
+  .picker-head{display:flex; justify-content:flex-end; align-items:center; max-width:480px;
+               margin:0 auto 4px; font-size:16px;}
   .picker-head .linkbtn{font-size:14px; padding:6px;}
   .picker-list{max-width:480px; margin:0 auto;}
   .picker-row{display:flex; gap:6px; padding:5px 0; border-top:1px solid var(--line); align-items:flex-start;}
@@ -77,6 +77,8 @@
                font-weight:700; color:var(--primary);}
   .picker-grid{flex:1; display:grid; grid-template-columns:repeat(5, 1fr); gap:5px;}
   .picker-grid .chip{height:34px; font-size:13px;}
+  .picker-grid .chip.leader{background:#fdf1cf; border-color:#eda405; color:#5c3d00; font-weight:700;}
+  .picker-grid .chip.president{background:#fdf1cf; color:#5c3d00; font-weight:700; border:3px double #eda405;}
   .out{font-family:monospace; font-size:12px; background:#f8f9fb; border:1px solid var(--line);
        border-radius:8px; padding:10px; word-break:break-all; min-height:40px; user-select:all;}
 </style>
@@ -93,7 +95,7 @@
     <label>이름</label>
     <input id="loginName" type="text" placeholder="이름" autocomplete="off">
     <label>비밀번호</label>
-    <input id="loginPw" type="password" placeholder="비밀번호" autocomplete="off">
+    <input id="loginPw" type="password" inputmode="numeric" pattern="[0-9]*" placeholder="비밀번호 (숫자)" autocomplete="off">
     <div class="err" id="loginErr"></div>
     <button class="submit" id="loginBtn">학생회 인증</button>
   </div>
@@ -101,7 +103,6 @@
   <!-- 이름 선택 화면 (명단이 있을 때 이름 칸을 누르면 열림) -->
   <div class="picker hidden" id="picker">
     <div class="picker-head">
-      <b>이름을 선택하세요</b>
       <button class="linkbtn" id="pickerClose">닫기</button>
     </div>
     <div class="picker-list" id="pickerGrid"></div>
@@ -110,7 +111,7 @@
   <!-- 비밀번호 바꾸기 도구: 주소 끝에 ?admin 을 붙이면 보입니다 -->
   <div class="card hidden" id="adminCard" style="margin-top:14px;">
     <label>비밀번호 바꾸기 (교사용)</label>
-    <input id="admPw" type="text" placeholder="새 공통 비밀번호" autocomplete="off">
+    <input id="admPw" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="새 공통 비밀번호 (숫자만)" autocomplete="off">
     <button class="submit" id="admBtn" style="margin-bottom:12px;">새 줄 만들기</button>
     <div class="out" id="admOut"></div>
     <p style="font-size:12px; color:var(--muted); margin:8px 0 0;">위에 나온 한 줄로 index.html의 <b>const PASSWORD_HASH = ...</b> 줄을 통째로 교체하세요.</p>
@@ -179,27 +180,28 @@ const GFORM = {
 /* ===== 공통 비밀번호 =====
    비밀번호를 바꾸려면: 사이트 주소 끝에 ?admin 을 붙여 열고,
    '비밀번호 바꾸기'에서 나온 한 줄로 아래 줄을 통째로 교체하세요. */
-const PASSWORD_HASH = "469fb2f06d15d2e70b8fab40675a4f227afa25c246cc28b03ab2b9eab6d0682c";
+const PASSWORD_HASH = "e28d6d18a97231549b13551cb64ff0fe38f3f15ce5cbfc99404a09962e6b4799";
 /* ========================== */
 
 /* ===== 학생회 명단 (학과별) =====
    "학과": ["이름","이름", ...],  형식입니다.
-   이름을 넣거나 뺄 때 따옴표와 쉼표를 지켜주세요. 학과 순서대로 화면에 나옵니다. */
+   이름을 넣거나 뺄 때 따옴표와 쉼표를 지켜주세요. 학과 순서대로 화면에 나옵니다.
+   이름 앞에 * 를 붙이면 학과 대표(노란 버튼), ** 를 붙이면 학생회장(노란 버튼 + 이중 테두리)으로 표시됩니다. */
 const MEMBERS = {
-  "화공":   ["김나현","김도희","유제현","박수빈","오새벽","최서윤"],
-  "환경":   ["박규태","강성현","김도희","허옥문"],
-  "소방":   ["김호민","강정후","심현교","정서영","이림환","이민준","정운비","정원결"],
-  "전자":   ["방용태","배준후","음우진","장성윤","추민성"],
-  "로봇":   ["박태환","김선호","서지호","권하겸","김민하","이서준"],
-  "사물":   ["김하율","김동현","이수혁","강민서","김민기","모준후","손우빈","유승하","최태규"],
-  "콘텐츠": ["이준석","김경록","박시훈","우현준","이수인","장하음","황은휘"],
-  "경찰":   ["김학래","문세영","성은지","이윤정"],
-  "레저":   ["이창민","배은솔","오수현","윤주영","이서연","이예원"],
-  "반도체": ["이진성","이준규","임준교","정민준","정현우"]
+  "화공":   ["*김나현","김도희","유제현","박수빈","오새벽","최서윤"],
+  "환경":   ["*박규태","강성현","김도희","허옥문"],
+  "로봇":   ["*박태환","김선호","서지호","권하겸","김민하","이서준"],
+  "소방":   ["*김호민","강정후","심현교","정서영","이림환","이민준","정운비","정원결"],
+  "전자":   ["*방용태","배준후","음우진","장성윤","추민성"],
+  "사물":   ["*김하율","김동현","이수혁","강민서","김민기","모준후","손우빈","유승하","최태규"],
+  "콘텐츠": ["*이준석","김경록","박시훈","우현준","이수인","장하음","황은휘"],
+  "경찰":   ["*김학래","문세영","성은지","이윤정"],
+  "레저":   ["**이창민","배은솔","오수현","윤주영","이서연","이예원"],
+  "반도체": ["*이진성","이준규","임준교","정민준","정현우"]
 };
 // 입력자로 기록되는 값은 "학과 이름" (예: 화공 김도희) — 같은 이름이 있어도 구분됩니다
 const MEMBER_LIST = [];
-Object.entries(MEMBERS).forEach(([d, arr]) => arr.forEach(n => MEMBER_LIST.push(d + " " + n)));
+Object.entries(MEMBERS).forEach(([d, arr]) => arr.forEach(n => MEMBER_LIST.push(d + " " + n.replace(/^\*+/, ""))));
 /* ========================== */
 
 const $ = id => document.getElementById(id);
@@ -292,10 +294,11 @@ if(MEMBER_LIST.length){
     lab.textContent = d;
     const g = document.createElement("div");
     g.className = "picker-grid";
-    arr.forEach(n=>{
+    arr.forEach(raw=>{
+      const n = raw.replace(/^\*+/, "");
       const c = document.createElement("button");
       c.type = "button";
-      c.className = "chip";
+      c.className = raw.startsWith("**") ? "chip president" : raw.startsWith("*") ? "chip leader" : "chip";
       c.textContent = n;
       c.addEventListener("click", ()=>{
         nb.value = d + " " + n;
@@ -328,8 +331,8 @@ $("logoutBtn").addEventListener("click", ()=>{
   else if(s && s.name && s.h === PASSWORD_HASH && (!MEMBER_LIST.length || MEMBER_LIST.includes(s.name))) showMain(s.name);
 })();
 $("admBtn").addEventListener("click", ()=>{
-  const pw = $("admPw").value;
-  if(!pw){ $("admOut").textContent = "새 비밀번호를 입력하세요"; return; }
+  const pw = $("admPw").value.trim();
+  if(!/^[0-9]+$/.test(pw)){ $("admOut").textContent = "새 비밀번호를 숫자로만 입력하세요"; return; }
   $("admOut").textContent = `const PASSWORD_HASH = "${pwHash(pw)}";`;
 });
 
