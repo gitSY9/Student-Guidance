@@ -52,7 +52,12 @@
   .log h2{font-size:13px; color:var(--muted); margin:0 0 8px; font-weight:600;}
   .log .item{font-size:13px; padding:8px 10px; background:#f8f9fb; border-radius:8px; margin-bottom:6px;
              display:flex; justify-content:space-between; gap:8px;}
-  .log .item span{color:var(--muted);}
+  .log .item{align-items:center;}
+  .log .item b{white-space:nowrap;}
+  .log .item span{color:var(--muted); flex:1; text-align:right;}
+  .log .item .del{flex:0 0 auto; height:30px; padding:0 10px; border:1px solid var(--line); border-radius:8px;
+                  background:#fff; color:#c0392b; font-size:12px; cursor:pointer;}
+  .log .item .del.armed{background:#c0392b; border-color:#c0392b; color:#fff;}
   .count{font-size:12px; color:var(--muted); text-align:center; margin-top:14px;}
   .userbar{margin-left:auto; text-align:right; font-size:13px; line-height:1.4;}
   .userbar b{display:block;}
@@ -89,7 +94,7 @@
   <div class="brand" id="brand">
     <img id="logo" alt="삼일공업고등학교 교표" width="132" height="131">
     <h1>제39대 학생자치운영위원회</h1>
-    <p>아침선도 적발 기록</p>
+    <p>학생 관리 시스템</p>
   </div>
   <div class="card" id="loginCard">
     <label>이름</label>
@@ -432,17 +437,7 @@ $("btn").addEventListener("click", async ()=>{
   $("btn").textContent = "제출 중...";
 
   try{
-    const fd = new FormData();
-    fd.append(GFORM.reporter, data.reporter);
-    fd.append(GFORM.dept, data.dept);
-    fd.append(GFORM.gradeClass, data.gradeClass);
-    fd.append(GFORM.name, data.name);
-    fd.append(GFORM.reason, data.reason);
-    await fetch(GFORM.action, {
-      method:"POST",
-      mode:"no-cors",
-      body: fd
-    });
+    await sendForm(data);
     // no-cors 모드는 응답을 읽을 수 없으므로 제출 성공으로 간주
     todayCount++;
     $("count").textContent = `오늘 제출 ${todayCount}건`;
@@ -463,15 +458,59 @@ $("btn").addEventListener("click", async ()=>{
   }
 });
 
+// 구글 폼으로 한 건 전송
+function sendForm(d){
+  const fd = new FormData();
+  fd.append(GFORM.reporter, d.reporter);
+  fd.append(GFORM.dept, d.dept);
+  fd.append(GFORM.gradeClass, d.gradeClass);
+  fd.append(GFORM.name, d.name);
+  fd.append(GFORM.reason, d.reason);
+  return fetch(GFORM.action, { method:"POST", mode:"no-cors", body: fd });
+}
+
 function addLog(d){
   $("logBox").style.display = "block";
   const el = document.createElement("div");
   el.className = "item";
   const b = document.createElement("b");
-  b.textContent = `${d.gradeClass} ${d.name}`;
+  b.textContent = `${d.dept} ${d.gradeClass} ${d.name}`;
   const s = document.createElement("span");
   s.textContent = d.reason;
-  el.append(b, s);
+  // 삭제 버튼: 한 번 누르면 '정말 삭제?'로 바뀌고, 다시 누르면 삭제
+  const del = document.createElement("button");
+  del.type = "button";
+  del.className = "del";
+  del.textContent = "삭제";
+  let armed = false, timer = null;
+  del.addEventListener("click", async ()=>{
+    if(!armed){
+      armed = true;
+      del.textContent = "정말 삭제?";
+      del.classList.add("armed");
+      timer = setTimeout(()=>{ armed = false; del.textContent = "삭제"; del.classList.remove("armed"); }, 3000);
+      return;
+    }
+    clearTimeout(timer);
+    del.disabled = true;
+    del.textContent = "삭제 중...";
+    try{
+      // 이미 시트에 들어간 줄은 지울 수 없으므로, '삭제 요청' 줄을 한 줄 더 보냄
+      await sendForm(Object.assign({}, d, { reason: "[삭제 요청] " + d.reason }));
+      el.remove();
+      todayCount = Math.max(0, todayCount - 1);
+      $("count").textContent = `오늘 제출 ${todayCount}건`;
+      if(!$("logList").children.length) $("logBox").style.display = "none";
+      toast("삭제 요청을 보냈습니다", true);
+    }catch(err){
+      armed = false;
+      del.disabled = false;
+      del.textContent = "삭제";
+      del.classList.remove("armed");
+      toast("삭제 실패. 인터넷을 확인하세요");
+    }
+  });
+  el.append(b, s, del);
   $("logList").prepend(el);
 }
 
